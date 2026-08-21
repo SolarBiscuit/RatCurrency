@@ -1,0 +1,20 @@
+{
+  "display": {
+    "icon": { "item": "ratcurrency:gold_coin" },
+    "title": { "translate": "advancements.ratcurrency.root.title" },
+    "description": { "translate": "advancements.ratcurrency.root.description" },
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "has_coin": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "tag": "ratcurrency:coins" }
+        ]
+      }
+    }
+  }
+}

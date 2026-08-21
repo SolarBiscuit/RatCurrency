@@ -1,0 +1,18 @@
+{
+  "parent": "ratcurrency:root",
+  "display": {
+    "icon": { "item": "ratcurrency:netherite_coin" },
+    "title": { "translate": "advancements.ratcurrency.greed.title" },
+    "description": { "translate": "advancements.ratcurrency.greed.description" },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "greed": {
+      "trigger": "ratcurrency:coin_count",
+      "conditions": {
+        "tier": "netherite",
+        "min": 100
+      }
+    }
+  }
+}

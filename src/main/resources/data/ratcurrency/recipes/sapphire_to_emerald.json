@@ -1,0 +1,5 @@
+{
+  "type": "ratcurrency:coin_upgrade",
+  "ingredient": "ratcurrency:sapphire_coin",
+  "result": "ratcurrency:emerald_coin"
+}

@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "entries": [
+    "ratcurrency:dungeon_pouch",
+    "ratcurrency:dungeon_case",
+    "ratcurrency:dungeon_crate"
+  ]
+}

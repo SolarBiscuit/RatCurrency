@@ -1,0 +1,19 @@
+{
+  "parent": "ratcurrency:time_to_buy_porygon",
+  "display": {
+    "icon": { "item": "ratcurrency:coin_crate" },
+    "title": { "translate": "advancements.ratcurrency.got_enough_slots.title" },
+    "description": { "translate": "advancements.ratcurrency.got_enough_slots.description" },
+    "frame": "goal"
+  },
+  "criteria": {
+    "has_crate": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["ratcurrency:coin_crate"] }
+        ]
+      }
+    }
+  }
+}

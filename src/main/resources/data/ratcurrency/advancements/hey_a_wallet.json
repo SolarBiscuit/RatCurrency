@@ -1,0 +1,18 @@
+{
+  "parent": "ratcurrency:root",
+  "display": {
+    "icon": { "item": "ratcurrency:coin_pouch" },
+    "title": { "translate": "advancements.ratcurrency.hey_a_wallet.title" },
+    "description": { "translate": "advancements.ratcurrency.hey_a_wallet.description" }
+  },
+  "criteria": {
+    "has_pouch": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["ratcurrency:coin_pouch"] }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "ratcurrency:copper_coin",
+    "ratcurrency:silver_coin",
+    "ratcurrency:gold_coin",
+    "ratcurrency:platinum_coin",
+    "ratcurrency:sapphire_coin",
+    "ratcurrency:emerald_coin",
+    "ratcurrency:ruby_coin",
+    "ratcurrency:diamond_coin",
+    "ratcurrency:netherite_coin"
+  ]
+}

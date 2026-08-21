@@ -1,0 +1,47 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+.vscode
+.cursor 
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+out/
+
+# gradle
+build
+.gradle
+.gradle/
+.log
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+
+# other
+eclipse
+run
+
+
+# Files from Forge MDK
+forge*changelog.txt
+run/
+logs/
+crash-reports/
+saves/
+usercache.json
+usernamecache.json
+
+
+# Other Specifics
+old src
+da og files/
+CustomGUI/
+Non-Project/
+OtherModRef/

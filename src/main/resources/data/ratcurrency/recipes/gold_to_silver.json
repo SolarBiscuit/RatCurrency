@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [{ "item": "ratcurrency:gold_coin" }],
+  "result": { "item": "ratcurrency:silver_coin", "count": 100 }
+}

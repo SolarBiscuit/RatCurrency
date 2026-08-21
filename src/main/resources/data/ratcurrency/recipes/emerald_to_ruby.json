@@ -1,0 +1,5 @@
+{
+  "type": "ratcurrency:coin_upgrade",
+  "ingredient": "ratcurrency:emerald_coin",
+  "result": "ratcurrency:ruby_coin"
+}

@@ -1,0 +1,18 @@
+{
+  "parent": "ratcurrency:hey_a_wallet",
+  "display": {
+    "icon": { "item": "ratcurrency:coin_case" },
+    "title": { "translate": "advancements.ratcurrency.time_to_buy_porygon.title" },
+    "description": { "translate": "advancements.ratcurrency.time_to_buy_porygon.description" }
+  },
+  "criteria": {
+    "has_case": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["ratcurrency:coin_case"] }
+        ]
+      }
+    }
+  }
+}
