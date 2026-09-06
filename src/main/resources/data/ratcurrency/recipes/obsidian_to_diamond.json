@@ -1,6 +1,6 @@
 {
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
-  "ingredients": [{ "item": "ratcurrency:netherite_coin" }],
+  "ingredients": [{ "item": "ratcurrency:obsidian_coin" }],
   "result": { "item": "ratcurrency:diamond_coin", "count": 100 }
 }

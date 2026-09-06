@@ -2,12 +2,17 @@ package com.solarbiscuit.ratcurrency;
 
 import com.solarbiscuit.ratcurrency.advancement.ModCriteria;
 import com.solarbiscuit.ratcurrency.config.RatCurrencyConfig;
-import com.solarbiscuit.ratcurrency.network.ModNetwork;
+import com.solarbiscuit.ratcurrency.economy.RatCoinService;
+import com.solarbiscuit.ratcurrency.inventory.CoinContainerMenu;
+import com.solarbiscuit.ratcurrency.inventory.OpenContext;
+import com.solarbiscuit.ratcurrency.inventory.RestoreTarget;
+import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.registry.ModCreativeTabs;
 import com.solarbiscuit.ratcurrency.registry.ModItems;
-import com.solarbiscuit.ratcurrency.registry.ModLootModifiers;
 import com.solarbiscuit.ratcurrency.registry.ModMenus;
 import com.solarbiscuit.ratcurrency.registry.ModRecipeSerializers;
+import com.solarbiscuit.ratlib.economy.CoinServices;
+import com.solarbiscuit.ratlib.inventory.OpenFromSlot;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -30,7 +35,6 @@ public class RatCurrency {
         ModCreativeTabs.TABS.register(modBus);
         ModMenus.MENUS.register(modBus);
         ModRecipeSerializers.SERIALIZERS.register(modBus);
-        ModLootModifiers.SERIALIZERS.register(modBus);
 
         ModCriteria.register();
 
@@ -40,6 +44,23 @@ public class RatCurrency {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
-        event.enqueueWork(ModNetwork::register);
+        event.enqueueWork(() -> {
+            CoinServices.register(new RatCoinService());
+            OpenFromSlot.register(
+                    (stack, menu) -> stack.getItem() instanceof CoinContainerItem,
+                    (player, menu, slot) -> {
+                        OpenContext context = OpenContext.fromMenuSlot(player, menu, slot);
+                        if (context == null) {
+                            return false;
+                        }
+                        RestoreTarget restore = RestoreTarget.fromCurrentMenu(player);
+                        if (menu instanceof CoinContainerMenu coinMenu) {
+                            coinMenu.skipRestore();
+                        }
+                        CoinContainerMenu.open(player, context, restore);
+                        return true;
+                    }
+            );
+        });
     }
 }

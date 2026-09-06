@@ -3,13 +3,13 @@ package com.solarbiscuit.ratcurrency.client;
 import com.solarbiscuit.ratcurrency.RatCurrency;
 import com.solarbiscuit.ratcurrency.inventory.CoinContainerMenu;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
 public class CoinContainerScreen extends AbstractContainerScreen<CoinContainerMenu> {
+    private static final ResourceLocation SATCHEL = ResourceLocation.fromNamespaceAndPath(RatCurrency.MOD_ID, "textures/gui/satchel.png");
     private static final ResourceLocation POUCH = ResourceLocation.fromNamespaceAndPath(RatCurrency.MOD_ID, "textures/gui/pouch.png");
     private static final ResourceLocation CASE = ResourceLocation.fromNamespaceAndPath(RatCurrency.MOD_ID, "textures/gui/case.png");
     private static final ResourceLocation CRATE = ResourceLocation.fromNamespaceAndPath(RatCurrency.MOD_ID, "textures/gui/crate.png");
@@ -23,16 +23,6 @@ public class CoinContainerScreen extends AbstractContainerScreen<CoinContainerMe
         this.inventoryLabelY = layout.playerInvY() - 11;
         this.titleLabelX = layout.containerX();
         this.titleLabelY = 6;
-    }
-
-    @Override
-    protected void init() {
-        super.init();
-        if (!this.menu.getRestoreTarget().isNone()) {
-            this.addRenderableWidget(Button.builder(Component.translatable("gui.ratcurrency.back"), button -> this.onClose())
-                    .bounds(this.leftPos + this.imageWidth - 50, this.topPos + 3, 46, 16)
-                    .build());
-        }
     }
 
     @Override
@@ -51,6 +41,9 @@ public class CoinContainerScreen extends AbstractContainerScreen<CoinContainerMe
     }
 
     private static ResourceLocation textureForSlots(int slots) {
+        if (slots == 6) {
+            return SATCHEL;
+        }
         if (slots == 9) {
             return POUCH;
         }

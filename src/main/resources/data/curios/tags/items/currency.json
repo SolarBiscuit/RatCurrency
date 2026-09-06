@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "ratcurrency:coin_pouch",
+    "ratcurrency:coin_case",
+    "ratcurrency:rat_coin_satchel"
+  ]
+}

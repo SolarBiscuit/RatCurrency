@@ -22,7 +22,7 @@ public class CoinPickupHandler {
     public static void onPickup(EntityItemPickupEvent event) {
         ItemEntity itemEntity = event.getItem();
         ItemStack stack = itemEntity.getItem();
-        if (!CoinHelper.isCoin(stack)) {
+        if (!CoinHelper.isCoin(stack) && !CoinHelper.isRatCoin(stack)) {
             return;
         }
         Player player = event.getEntity();

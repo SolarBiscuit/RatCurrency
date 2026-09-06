@@ -1,5 +1,5 @@
 {
   "type": "ratcurrency:coin_upgrade",
-  "ingredient": "ratcurrency:diamond_coin",
+  "ingredient": "ratcurrency:obsidian_coin",
   "result": "ratcurrency:netherite_coin"
 }

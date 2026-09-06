@@ -9,6 +9,7 @@
     "ratcurrency:emerald_coin",
     "ratcurrency:ruby_coin",
     "ratcurrency:diamond_coin",
+    "ratcurrency:obsidian_coin",
     "ratcurrency:netherite_coin"
   ]
 }

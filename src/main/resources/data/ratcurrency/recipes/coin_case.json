@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " S ",
+    "ILI",
+    "LLL"
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "L": { "item": "minecraft:leather" }
+  },
+  "result": { "item": "ratcurrency:coin_case" }
+}

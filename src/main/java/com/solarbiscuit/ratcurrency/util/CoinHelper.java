@@ -1,8 +1,10 @@
 package com.solarbiscuit.ratcurrency.util;
 
+import com.solarbiscuit.ratcurrency.inventory.CoinItemHandler;
 import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.item.CoinItem;
 import com.solarbiscuit.ratcurrency.item.CoinTier;
+import com.solarbiscuit.ratcurrency.item.RatCoinItem;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -23,6 +25,10 @@ public final class CoinHelper {
 
     public static boolean isCoin(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof CoinItem;
+    }
+
+    public static boolean isRatCoin(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof RatCoinItem;
     }
 
     public static boolean isCoinContainer(ItemStack stack) {
@@ -157,6 +163,58 @@ public final class CoinHelper {
         }
         total += com.solarbiscuit.ratcurrency.compat.curios.CuriosCompat.countCoins(player, tier);
         return total;
+    }
+
+    public static boolean tryTake(Player player, CoinTier tier, int count) {
+        if (count <= 0) {
+            return true;
+        }
+        if (tier == null || countCoins(player, tier) < count) {
+            return false;
+        }
+        int remaining = takeFromInventory(player.getInventory(), tier, count);
+        if (remaining > 0) {
+            remaining = com.solarbiscuit.ratcurrency.compat.curios.CuriosCompat.takeCoins(player, tier, remaining);
+        }
+        return remaining <= 0;
+    }
+
+    private static int takeFromInventory(Inventory inv, CoinTier tier, int remaining) {
+        for (int i = 0; i < inv.getContainerSize() && remaining > 0; i++) {
+            ItemStack stack = inv.getItem(i);
+            remaining = takeFromStack(stack, tier, remaining);
+            if (stack.isEmpty()) {
+                inv.setItem(i, ItemStack.EMPTY);
+            }
+        }
+        return remaining;
+    }
+
+    public static int takeFromStack(ItemStack stack, CoinTier tier, int remaining) {
+        if (remaining <= 0 || stack.isEmpty()) {
+            return remaining;
+        }
+        if (CoinTier.of(stack.getItem()) == tier) {
+            int take = Math.min(remaining, stack.getCount());
+            stack.shrink(take);
+            return remaining - take;
+        }
+        if (stack.getItem() instanceof CoinContainerItem item) {
+            CoinItemHandler handler = item.createHandler(stack);
+            final int[] left = {remaining};
+            handler.runSilent(() -> {
+                for (int i = 0; i < handler.getSlots() && left[0] > 0; i++) {
+                    ItemStack inner = handler.getStackInSlot(i);
+                    left[0] = takeFromStack(inner, tier, left[0]);
+                    if (inner.isEmpty()) {
+                        handler.setStackInSlot(i, ItemStack.EMPTY);
+                    }
+                }
+                compress(handler);
+            });
+            return left[0];
+        }
+        return remaining;
     }
 
     public static int countInStack(ItemStack stack, CoinTier tier) {

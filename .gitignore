@@ -1,47 +1,92 @@
-# eclipse
-bin
-*.launch
-.settings
-.metadata
-.classpath
-.project
-.vscode
-.cursor 
-# idea
-out
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Editors / IDEs
+.idea/
+*.iml
 *.ipr
 *.iws
-*.iml
-.idea
 out/
+bin/
+*.launch
+.settings/
+.metadata/
+.classpath
+.project
+.vscode/
+.cursor/
+eclipse/
 
-# gradle
-build
-.gradle
+# Gradle
 .gradle/
-.log
 build/
+!src/**/build/
 !gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
 
-# other
-eclipse
-run
+# Compiled / packages (keep the Gradle wrapper jar)
+*.class
+*.jar
+*.war
+!gradle/wrapper/gradle-wrapper.jar
 
+# Local Maven publish output
+mcmodsrepo/
 
-# Files from Forge MDK
-forge*changelog.txt
+# Forge / Minecraft run dirs
 run/
+run-data/
 logs/
 crash-reports/
 saves/
 usercache.json
 usernamecache.json
+options.txt
+banned-ips.json
+banned-players.json
+ops.json
+whitelist.json
+eula.txt
 
+# Forge MDK leftovers (not this mod's docs)
+forge*changelog.txt
+/changelog.txt
+/README.txt
 
-# Other Specifics
+# Logs / crash dumps
+*.log
+hs_err_pid*
+replay_pid*
+
+# Secrets / local config
+.env
+.env.*
+*.jks
+*.keystore
+local.properties
+secrets/
+
+# Python helper scripts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Backups
+*~
+*.bak
+*.swp
+*.orig
+*.tmp
+
+# Data-gen cache
+src/generated/**/.cache/
+
+# Local reference / scratch (not part of the public mod)
+OtherModRef/
+Non-Project/
+CustomGUI/
 old src
 da og files/
-CustomGUI/
-Non-Project/
-OtherModRef/

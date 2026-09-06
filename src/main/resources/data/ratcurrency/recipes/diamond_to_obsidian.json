@@ -1,0 +1,5 @@
+{
+  "type": "ratcurrency:coin_upgrade",
+  "ingredient": "ratcurrency:diamond_coin",
+  "result": "ratcurrency:obsidian_coin"
+}

@@ -13,7 +13,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.SlotItemHandler;
 import net.minecraftforge.network.NetworkHooks;
 
 import java.util.UUID;
@@ -29,6 +28,9 @@ public class CoinContainerMenu extends AbstractContainerMenu {
     public record Layout(int columns, int rows, int imageWidth, int imageHeight, int containerX, int containerY,
                          int playerInvX, int playerInvY, int textureWidth, int textureHeight) {
         public static Layout forSlots(int slots) {
+            if (slots == 6) {
+                return new Layout(3, 2, 176, 166, 62, 17, 8, 84, 256, 256);
+            }
             if (slots == 9) {
                 return new Layout(3, 3, 176, 166, 62, 17, 8, 84, 256, 256);
             }
@@ -64,7 +66,11 @@ public class CoinContainerMenu extends AbstractContainerMenu {
         UUID openId = buf.readUUID();
         OpenContext context = OpenContext.read(buf);
         RestoreTarget restore = RestoreTarget.read(buf);
-        return new CoinContainerMenu(id, inv, context, restore, new CoinItemHandler(size), openId);
+        CoinItemHandler handler = context.createHandler(inv.player);
+        if (handler.getSlots() != size) {
+            handler = new CoinItemHandler(size);
+        }
+        return new CoinContainerMenu(id, inv, context, restore, handler, openId);
     }
 
     public static void open(ServerPlayer player, OpenContext context, RestoreTarget restore) {
@@ -112,7 +118,7 @@ public class CoinContainerMenu extends AbstractContainerMenu {
                 int index = col + row * this.layout.columns();
                 int x = this.layout.containerX() + col * 18;
                 int y = this.layout.containerY() + row * 18;
-                this.addSlot(new SlotItemHandler(this.handler, index, x, y));
+                this.addSlot(new CoinSlot(this.handler, index, x, y));
             }
         }
     }
@@ -145,6 +151,21 @@ public class CoinContainerMenu extends AbstractContainerMenu {
             public boolean mayPlace(ItemStack stack) {
                 return !locked && super.mayPlace(stack);
             }
+
+            @Override
+            public int getMaxStackSize() {
+                ItemStack stack = this.getItem();
+                int itemMax = stack.isEmpty() ? CoinHelper.COINS_PER_TIER : stack.getMaxStackSize();
+                return Math.max(super.getMaxStackSize(), itemMax);
+            }
+
+            @Override
+            public int getMaxStackSize(ItemStack stack) {
+                if (stack.isEmpty()) {
+                    return super.getMaxStackSize(stack);
+                }
+                return Math.max(super.getMaxStackSize(stack), stack.getMaxStackSize());
+            }
         };
     }
 
@@ -161,7 +182,7 @@ public class CoinContainerMenu extends AbstractContainerMenu {
                     return ItemStack.EMPTY;
                 }
             } else {
-                if (!CoinHelper.isAllowedInContainer(stack) || !this.moveItemStackTo(stack, 0, containerSlots, false)) {
+                if (!this.handler.isItemValid(0, stack) || !this.moveItemStackTo(stack, 0, containerSlots, false)) {
                     return ItemStack.EMPTY;
                 }
             }

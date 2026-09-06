@@ -8,6 +8,7 @@ public class RatCurrencyConfig {
     public static final ForgeConfigSpec.IntValue MIN_COPPER;
     public static final ForgeConfigSpec.IntValue MAX_COPPER;
     public static final ForgeConfigSpec.BooleanValue REQUIRE_PLAYER_KILL;
+    public static final ForgeConfigSpec.IntValue RAT_COIN_MAX_STACK;
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -19,11 +20,16 @@ public class RatCurrencyConfig {
                 .comment("Minimum copper-unit value dropped (1 copper = 1).")
                 .defineInRange("minCopper", 1, 1, 4096);
         MAX_COPPER = builder
-                .comment("Maximum copper-unit value dropped (100 = 1 silver, 200 = 2 silver).")
-                .defineInRange("maxCopper", 200, 1, 4096);
+                .comment("Maximum copper-unit value dropped (60 copper; 100 = 1 silver).")
+                .defineInRange("maxCopper", 60, 1, 4096);
         REQUIRE_PLAYER_KILL = builder
                 .comment("If true, coins only drop when a player (or their wolf, etc.) is credited for the kill.")
                 .define("requirePlayerKill", true);
+        builder.pop();
+        builder.comment("Uncraftable Rat Coin").push("ratCoin");
+        RAT_COIN_MAX_STACK = builder
+                .comment("Maximum stack size for Rat Coins (1-64).")
+                .defineInRange("maxStack", 8, 1, 64);
         builder.pop();
         SPEC = builder.build();
     }

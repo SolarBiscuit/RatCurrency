@@ -4,6 +4,7 @@ import com.solarbiscuit.ratcurrency.inventory.CoinContainerMenu;
 import com.solarbiscuit.ratcurrency.inventory.CoinItemHandler;
 import com.solarbiscuit.ratcurrency.inventory.OpenContext;
 import com.solarbiscuit.ratcurrency.inventory.RestoreTarget;
+import com.solarbiscuit.ratcurrency.util.CoinHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,6 +39,18 @@ public class CoinContainerItem extends Item {
 
     public String getTitleKey() {
         return this.titleKey;
+    }
+
+    public boolean isItemAllowed(ItemStack stack) {
+        return CoinHelper.isAllowedInContainer(stack);
+    }
+
+    public int getSlotLimit() {
+        return CoinHelper.COINS_PER_TIER;
+    }
+
+    public boolean shouldCompress() {
+        return true;
     }
 
     public CoinItemHandler createHandler(ItemStack stack) {

@@ -4,6 +4,7 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
+apply from: 'version-increment.gradle'
 
 version = "${mod_version}"
 group = "${mod_group_id}"
@@ -60,11 +61,16 @@ repositories {
         name = "Illusive Soulworks"
         url = "https://maven.theillusivec4.top/"
     }
+    maven {
+        name = "RatLib local"
+        url = uri(file("${rootDir}/../[1.20.1]RatLib/mcmodsrepo"))
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
+    implementation fg.deobf("com.solarbiscuit:ratlib:${ratlib_version}")
     compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}:api")
     runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
 }

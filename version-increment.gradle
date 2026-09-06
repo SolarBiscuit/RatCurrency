@@ -1,0 +1,163 @@
+/*
+ * Auto-increments the mod version on `gradlew build` / `gradlew clean build`.
+ *
+ * Usage: copy this file into the mod root, then apply it near the TOP of
+ * build.gradle — after `plugins {}`, before `version = "${mod_version}"` and
+ * before `processResources` — so the jar and mods.toml use the new number:
+ *
+ *     plugins { ... }
+ *     apply from: 'version-increment.gradle'
+ *     version = "${mod_version}"
+ *
+ * Skip a bump:  .\gradlew build -PskipVersionIncrement
+ *
+ * Failed builds revert gradle.properties so a compile error does not keep the bump.
+ *
+ * If you would rather bump AFTER a successful build (jar keeps the old version),
+ * move the file write / applyVersionToProject() calls into:
+ *     tasks.named(TRIGGER_TASK) { doLast { ... } }
+ * and drop the buildFinished revert.
+ */
+
+// ---------------------------------------------------------------------------
+// Config — change these for other projects / versioning styles
+// ---------------------------------------------------------------------------
+
+// File that stores the version (relative to the project root).
+def VERSION_FILE = 'gradle.properties'
+
+// Property key inside that file. Forge MDKs use mod_version.
+def VERSION_KEY = 'mod_version'
+
+// When Z is already this value, the next bump is Y+1.0 (X is never auto-changed).
+// Example with 20: 1.3.19 -> 1.3.20, then 1.3.20 -> 1.4.0
+def PATCH_LIMIT = 20
+
+// Optional string always appended after X.Y.Z. Examples: '-beta', '-RatPatch', '-SNAPSHOT'
+// Leave empty to keep whatever suffix is already on the version line (or none).
+def VERSION_SUFFIX = ''
+
+// Gradle task name that triggers a bump (`build` covers both `build` and `clean build`).
+def TRIGGER_TASK = 'build'
+
+// Matches X.Y.Z plus any optional suffix (e.g. 1.2.4, 1.2.4-SNAPSHOT).
+// Other layouts — change this regex and bumpParsedVersion() below:
+//   X.Y only:     /^(\d+)\.(\d+)(.*)$/
+//   four-part:    /^(\d+)\.(\d+)\.(\d+)\.(\d+)(.*)$/
+def VERSION_PATTERN = ~/^(\d+)\.(\d+)\.(\d+)(.*)$/
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+def requestedBuild = {
+    gradle.startParameter.taskNames.any { name ->
+        name == TRIGGER_TASK || name.endsWith(':' + TRIGGER_TASK)
+    }
+}
+
+def bumpParsedVersion = { String current ->
+    def matcher = VERSION_PATTERN.matcher(current.trim())
+    if (!matcher.matches()) {
+        return null
+    }
+
+    def major = matcher.group(1) as int
+    def minor = matcher.group(2) as int
+    def patch = matcher.group(3) as int
+    def suffix = VERSION_SUFFIX ? VERSION_SUFFIX : (matcher.group(4) ?: '')
+
+    if (patch >= PATCH_LIMIT) {
+        minor++
+        patch = 0
+    } else {
+        patch++
+    }
+
+    // X (major) is left unchanged on purpose — bump it by hand when you want a new series.
+    return "${major}.${minor}.${patch}${suffix}"
+}
+
+def replaceVersionLine = { String text, String newValue ->
+    def keyPattern = ~("^(\\s*)${java.util.regex.Pattern.quote(VERSION_KEY)}(\\s*=\\s*).*\$")
+    def found = false
+    def updated = text.readLines().collect { line ->
+        def lineMatcher = keyPattern.matcher(line)
+        if (lineMatcher.matches()) {
+            found = true
+            return "${lineMatcher.group(1)}${VERSION_KEY}${lineMatcher.group(2)}${newValue}"
+        }
+        return line
+    }.join(text.contains('\r\n') ? '\r\n' : '\n')
+
+    if (text.endsWith('\n') || text.endsWith('\r\n')) {
+        updated += text.contains('\r\n') ? '\r\n' : '\n'
+    }
+    return found ? updated : null
+}
+
+def applyVersionToProject = { String oldValue, String newValue ->
+    ext.set(VERSION_KEY, newValue)
+
+    def current = project.version?.toString()
+    if (current && current != 'unspecified' && current != Project.DEFAULT_VERSION) {
+        if (current == oldValue) {
+            project.version = newValue
+        } else if (current.contains(oldValue)) {
+            project.version = current.replace(oldValue, newValue)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Run
+// ---------------------------------------------------------------------------
+
+if (gradle.startParameter.dryRun || !requestedBuild()) {
+    return
+}
+if (project.findProperty('skipVersionIncrement') != null) {
+    println "Version increment skipped (-PskipVersionIncrement)"
+    return
+}
+
+def versionFile = file(VERSION_FILE)
+if (!versionFile.exists()) {
+    logger.warn("Version increment skipped: ${VERSION_FILE} not found")
+    return
+}
+
+def originalText = versionFile.getText('UTF-8')
+def keyLinePattern = ~("^\\s*${java.util.regex.Pattern.quote(VERSION_KEY)}\\s*=\\s*(.*?)\\s*\$")
+def oldValue = originalText.readLines().findResult { line ->
+    def lineMatcher = keyLinePattern.matcher(line)
+    lineMatcher.matches() ? lineMatcher.group(1).trim() : null
+}
+
+if (oldValue == null) {
+    logger.warn("Version increment skipped: ${VERSION_KEY} not found in ${VERSION_FILE}")
+    return
+}
+
+def newValue = bumpParsedVersion(oldValue)
+if (newValue == null) {
+    logger.warn("Version increment skipped: '${oldValue}' is not X.Y.Z (example: 1.2.4 or 1.2.4-SNAPSHOT)")
+    return
+}
+
+def updatedText = replaceVersionLine(originalText, newValue)
+if (updatedText == null) {
+    logger.warn("Version increment skipped: could not rewrite ${VERSION_KEY} in ${VERSION_FILE}")
+    return
+}
+
+versionFile.setText(updatedText, 'UTF-8')
+applyVersionToProject(oldValue, newValue)
+println "Version increment: ${oldValue} -> ${newValue}"
+
+gradle.buildFinished { result ->
+    if (result.failure != null && versionFile.exists()) {
+        versionFile.setText(originalText, 'UTF-8')
+        println "Version increment reverted (${oldValue}) because the build failed"
+    }
+}

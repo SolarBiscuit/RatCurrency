@@ -16,6 +16,7 @@ public enum CoinTier {
     EMERALD,
     RUBY,
     DIAMOND,
+    OBSIDIAN,
     NETHERITE;
 
     public String itemId() {
@@ -47,6 +48,7 @@ public enum CoinTier {
             case EMERALD -> ModItems.EMERALD_COIN;
             case RUBY -> ModItems.RUBY_COIN;
             case DIAMOND -> ModItems.DIAMOND_COIN;
+            case OBSIDIAN -> ModItems.OBSIDIAN_COIN;
             case NETHERITE -> ModItems.NETHERITE_COIN;
         };
     }
@@ -55,6 +57,19 @@ public enum CoinTier {
     public static CoinTier of(Item item) {
         if (item instanceof CoinItem coinItem) {
             return coinItem.getTier();
+        }
+        return null;
+    }
+
+    @Nullable
+    public static CoinTier byPath(String path) {
+        if (path == null) {
+            return null;
+        }
+        for (CoinTier tier : values()) {
+            if (tier.itemId().equals(path)) {
+                return tier;
+            }
         }
         return null;
     }

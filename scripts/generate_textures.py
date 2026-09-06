@@ -10,8 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ITEM = ROOT / "src" / "main" / "resources" / "assets" / "ratcurrency" / "textures" / "item"
 GUI = ROOT / "src" / "main" / "resources" / "assets" / "ratcurrency" / "textures" / "gui"
+SLOT = ROOT / "src" / "main" / "resources" / "assets" / "ratcurrency" / "textures" / "slot"
 ITEM.mkdir(parents=True, exist_ok=True)
 GUI.mkdir(parents=True, exist_ok=True)
+SLOT.mkdir(parents=True, exist_ok=True)
 
 
 def chunk(tag: bytes, data: bytes) -> bytes:
@@ -94,39 +96,141 @@ def draw_pouch() -> list[tuple[int, int, int, int]]:
     leather = hex_color("#8B5A2B")
     dark = hex_color("#5C3A1E")
     light = hex_color("#C4A574")
-    cord = hex_color("#E8D48A")
-    black = (20, 20, 20, 255)
-    # bag body
+    strap = hex_color("#6E4220")
+    stitch = hex_color("#D2B48C")
+    buckle = hex_color("#C9A227")
+    black = (24, 16, 10, 255)
+
+    # shoulder strap
+    for x, y in [(2, 1), (3, 2), (4, 3), (5, 4), (11, 4), (12, 3), (13, 2), (14, 1)]:
+        setp(px, w, x, y, strap)
+    setp(px, w, 3, 1, black)
+    setp(px, w, 13, 1, black)
+
+    # rounded satchel body
     for y in range(5, 15):
-        for x in range(3, 13):
-            if y == 5 and x in (3, 12):
+        for x in range(2, 14):
+            if (y == 5 and x in (2, 13)) or (y == 14 and x in (2, 3, 12, 13)):
                 continue
-            if y == 14 and x in (3, 12):
+            if (y == 13 and x in (2, 13)):
                 continue
             col = leather
-            if x <= 4 or y >= 13:
+            if x <= 3 or y >= 13:
                 col = dark
-            if x >= 10 and y < 10:
-                col = shade(leather, 1.15)
+            if x >= 11 and y < 11:
+                col = shade(leather, 1.12)
             setp(px, w, x, y, col)
-    for x in range(3, 13):
-        setp(px, w, x, 5, black)
-        setp(px, w, x, 14, black)
+
+    # flap
+    for y in range(4, 9):
+        for x in range(3, 13):
+            if y == 4 and x in (3, 12):
+                continue
+            if y == 8 and x in (3, 12):
+                continue
+            col = shade(leather, 1.08 if y < 6 else 0.95)
+            if x <= 4:
+                col = dark
+            setp(px, w, x, y, col)
+    for x in range(4, 12):
+        setp(px, w, x, 8, dark)
+
+    # buckle + stitch
+    setp(px, w, 7, 8, buckle)
+    setp(px, w, 8, 8, buckle)
+    setp(px, w, 7, 9, black)
+    setp(px, w, 8, 9, black)
+    setp(px, w, 5, 6, stitch)
+    setp(px, w, 10, 6, stitch)
+    setp(px, w, 8, 11, light)
+    return px
+
+
+def draw_satchel() -> list[tuple[int, int, int, int]]:
+    w = 16
+    px = canvas(w, 16)
+    leather = hex_color("#8B5A2B")
+    dark = hex_color("#5C3A1E")
+    light = hex_color("#C4A574")
+    strap = hex_color("#6E4220")
+    stitch = hex_color("#D2B48C")
+    pink = hex_color("#E8A0B0")
+    fur = hex_color("#6B4A3A")
+    black = (24, 16, 10, 255)
+    eye = (18, 12, 8, 255)
+
+    for x, y in [(2, 1), (3, 2), (4, 3), (5, 4), (11, 4), (12, 3), (13, 2), (14, 1)]:
+        setp(px, w, x, y, strap)
+    setp(px, w, 3, 1, black)
+    setp(px, w, 13, 1, black)
+
     for y in range(5, 15):
-        setp(px, w, 3, y, black)
-        setp(px, w, 12, y, black)
-    # drawstring
-    for x in range(5, 11):
-        setp(px, w, x, 4, cord)
-    setp(px, w, 7, 2, cord)
-    setp(px, w, 8, 2, cord)
-    setp(px, w, 7, 3, cord)
-    setp(px, w, 8, 3, cord)
-    setp(px, w, 6, 3, black)
-    setp(px, w, 9, 3, black)
-    # coin glint
-    setp(px, w, 8, 9, light)
-    setp(px, w, 7, 10, light)
+        for x in range(2, 14):
+            if (y == 5 and x in (2, 13)) or (y == 14 and x in (2, 3, 12, 13)):
+                continue
+            if (y == 13 and x in (2, 13)):
+                continue
+            col = leather
+            if x <= 3 or y >= 13:
+                col = dark
+            if x >= 11 and y < 11:
+                col = shade(leather, 1.12)
+            setp(px, w, x, y, col)
+
+    for y in range(4, 9):
+        for x in range(3, 13):
+            if y == 4 and x in (3, 12):
+                continue
+            if y == 8 and x in (3, 12):
+                continue
+            col = shade(leather, 1.08 if y < 6 else 0.95)
+            if x <= 4:
+                col = dark
+            setp(px, w, x, y, col)
+    for x in range(4, 12):
+        setp(px, w, x, 8, dark)
+
+    # tiny rat face on the flap
+    setp(px, w, 5, 4, fur)
+    setp(px, w, 10, 4, fur)
+    setp(px, w, 5, 5, pink)
+    setp(px, w, 10, 5, pink)
+    setp(px, w, 6, 5, fur)
+    setp(px, w, 7, 5, fur)
+    setp(px, w, 8, 5, fur)
+    setp(px, w, 9, 5, fur)
+    setp(px, w, 6, 6, eye)
+    setp(px, w, 9, 6, eye)
+    setp(px, w, 7, 6, fur)
+    setp(px, w, 8, 6, fur)
+    setp(px, w, 7, 7, pink)
+    setp(px, w, 8, 7, pink)
+    setp(px, w, 6, 7, stitch)
+    setp(px, w, 9, 7, stitch)
+    setp(px, w, 7, 8, shade(pink, 0.85))
+    setp(px, w, 8, 8, shade(pink, 0.85))
+    setp(px, w, 8, 11, light)
+    return px
+
+
+def draw_empty_currency_slot() -> list[tuple[int, int, int, int]]:
+    w = 16
+    px = canvas(w, 16)
+    outline = hex_color("#C4A574")
+    dark = hex_color("#8B5A2B")
+    pouch = draw_pouch()
+    for y in range(16):
+        for x in range(16):
+            if pouch[y * 16 + x][3] == 0:
+                continue
+            edge = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if nx < 0 or nx >= 16 or ny < 0 or ny >= 16 or pouch[ny * 16 + nx][3] == 0:
+                    edge = True
+                    break
+            if edge:
+                setp(px, w, x, y, dark if y > 10 or x <= 3 else outline)
     return px
 
 
@@ -272,7 +376,9 @@ def main():
         "emerald_coin": hex_color("#50C878"),
         "ruby_coin": hex_color("#E0115F"),
         "diamond_coin": hex_color("#B9F2FF"),
+        "obsidian_coin": hex_color("#2A2030"),
         "netherite_coin": hex_color("#3A2A28"),
+        "rat_coin": hex_color("#B44AC0"),
     }
     for name, color in coins.items():
         write_png(ITEM / f"{name}.png", 16, 16, draw_coin(color))
@@ -280,9 +386,14 @@ def main():
     write_png(ITEM / "coin_pouch.png", 16, 16, draw_pouch())
     write_png(ITEM / "coin_case.png", 16, 16, draw_case())
     write_png(ITEM / "coin_crate.png", 16, 16, draw_crate())
+    write_png(ITEM / "rat_coin_satchel.png", 16, 16, draw_satchel())
+    write_png(SLOT / "empty_currency_slot.png", 16, 16, draw_empty_currency_slot())
 
     pouch_slots = [(62 + c * 18, 17 + r * 18) for r in range(3) for c in range(3)]
     write_png(GUI / "pouch.png", 256, 256, draw_gui(176, 166, 256, 256, pouch_slots, 8, 84))
+
+    satchel_slots = [(62 + c * 18, 17 + r * 18) for r in range(2) for c in range(3)]
+    write_png(GUI / "satchel.png", 256, 256, draw_gui(176, 166, 256, 256, satchel_slots, 8, 84))
 
     case_slots = [(8 + c * 18, 18 + r * 18) for r in range(3) for c in range(9)]
     write_png(GUI / "case.png", 256, 256, draw_gui(176, 166, 256, 256, case_slots, 8, 84))

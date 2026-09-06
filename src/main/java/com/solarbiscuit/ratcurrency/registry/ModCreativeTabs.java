@@ -24,10 +24,13 @@ public class ModCreativeTabs {
                 output.accept(ModItems.EMERALD_COIN.get());
                 output.accept(ModItems.RUBY_COIN.get());
                 output.accept(ModItems.DIAMOND_COIN.get());
+                output.accept(ModItems.OBSIDIAN_COIN.get());
                 output.accept(ModItems.NETHERITE_COIN.get());
+                output.accept(ModItems.RAT_COIN.get());
                 output.accept(ModItems.COIN_POUCH.get());
                 output.accept(ModItems.COIN_CASE.get());
                 output.accept(ModItems.COIN_CRATE.get());
+                output.accept(ModItems.RAT_COIN_SATCHEL.get());
             })
             .build());
 }

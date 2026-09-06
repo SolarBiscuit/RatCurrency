@@ -1,5 +1,5 @@
 {
-  "type": "ratcurrency:add_item",
+  "type": "ratlib:add_item",
   "conditions": [
     {
       "condition": "minecraft:any_of",

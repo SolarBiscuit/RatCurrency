@@ -5,6 +5,8 @@ import com.solarbiscuit.ratcurrency.util.CoinHelper;
 import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.item.CoinItem;
 import com.solarbiscuit.ratcurrency.item.CoinTier;
+import com.solarbiscuit.ratcurrency.item.RatCoinItem;
+import com.solarbiscuit.ratcurrency.item.RatCoinSatchelItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -22,6 +24,7 @@ public class ModItems {
     public static final RegistryObject<Item> EMERALD_COIN = coin(CoinTier.EMERALD);
     public static final RegistryObject<Item> RUBY_COIN = coin(CoinTier.RUBY);
     public static final RegistryObject<Item> DIAMOND_COIN = coin(CoinTier.DIAMOND);
+    public static final RegistryObject<Item> OBSIDIAN_COIN = coin(CoinTier.OBSIDIAN);
     public static final RegistryObject<Item> NETHERITE_COIN = coin(CoinTier.NETHERITE);
 
     public static final RegistryObject<Item> COIN_POUCH = ITEMS.register("coin_pouch",
@@ -33,6 +36,10 @@ public class ModItems {
     public static final RegistryObject<Item> COIN_CRATE = ITEMS.register("coin_crate",
             () -> new CoinContainerItem(96, "container.ratcurrency.coin_crate",
                     new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> RAT_COIN = ITEMS.register("rat_coin",
+            () -> new RatCoinItem(new Item.Properties().stacksTo(RatCoinItem.DEFAULT_MAX_STACK)));
+    public static final RegistryObject<Item> RAT_COIN_SATCHEL = ITEMS.register("rat_coin_satchel",
+            () -> new RatCoinSatchelItem(new Item.Properties().stacksTo(1)));
 
     private static RegistryObject<Item> coin(CoinTier tier) {
         return ITEMS.register(tier.itemId(), () -> new CoinItem(tier, new Item.Properties().stacksTo(CoinHelper.COINS_PER_TIER)));

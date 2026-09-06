@@ -7,9 +7,6 @@ import com.solarbiscuit.ratcurrency.util.CoinHelper;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.SlotItemHandler;
 import top.theillusivec4.curios.api.CuriosApi;
 import top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler;
 
@@ -17,61 +14,44 @@ import javax.annotation.Nullable;
 
 public final class CuriosCompat {
     public static final String MOD_ID = "curios";
+    public static final String CURRENCY = "currency";
     public static final String BELT = "belt";
+    public static final String HANDS = "hands";
 
     private CuriosCompat() {
     }
 
     public static boolean isLoaded() {
-        return ModList.get().isLoaded(MOD_ID);
+        return com.solarbiscuit.ratlib.compat.curios.CuriosCompat.isLoaded();
     }
 
     public static ItemStack insertIntoBelt(Player player, ItemStack coins) {
         if (!isLoaded() || coins.isEmpty()) {
             return coins;
         }
-        return insertIntoBeltLoaded(player, coins);
+        ItemStack remaining = insertIntoSlot(player, CURRENCY, coins);
+        if (remaining.isEmpty()) {
+            return remaining;
+        }
+        remaining = insertIntoSlot(player, BELT, remaining);
+        if (remaining.isEmpty()) {
+            return remaining;
+        }
+        return insertIntoSlot(player, HANDS, remaining);
     }
 
-    private static ItemStack insertIntoBeltLoaded(Player player, ItemStack coins) {
-        ItemStack remaining = coins;
-        var curios = CuriosApi.getCuriosInventory(player).orElse(null);
-        if (curios == null) {
-            return remaining;
-        }
-        var belt = curios.getStacksHandler(BELT).orElse(null);
-        if (belt == null) {
-            return remaining;
-        }
-        IDynamicStackHandler stacks = belt.getStacks();
-        for (int i = 0; i < stacks.getSlots() && !remaining.isEmpty(); i++) {
-            ItemStack stored = stacks.getStackInSlot(i);
-            if (stored.getItem() instanceof CoinContainerItem container) {
-                remaining = container.createHandler(stored).insertItemStacked(remaining);
-            }
-        }
-        return remaining;
+    private static ItemStack insertIntoSlot(Player player, String slotId, ItemStack coins) {
+        return com.solarbiscuit.ratlib.compat.curios.CuriosCompat.insertIntoSlot(player, slotId, coins,
+                (handler, slot, stored, remaining) -> {
+                    if (stored.getItem() instanceof CoinContainerItem container) {
+                        return container.createHandler(stored).insertItemStacked(remaining);
+                    }
+                    return remaining;
+                });
     }
 
     public static ItemStack getStack(Player player, String identifier, int slot) {
-        if (!isLoaded()) {
-            return ItemStack.EMPTY;
-        }
-        return getStackLoaded(player, identifier, slot);
-    }
-
-    private static ItemStack getStackLoaded(Player player, String identifier, int slot) {
-        return CuriosApi.getCuriosInventory(player)
-                .map(handler -> handler.getStacksHandler(identifier)
-                        .map(stacks -> {
-                            IDynamicStackHandler dynamic = stacks.getStacks();
-                            if (slot < 0 || slot >= dynamic.getSlots()) {
-                                return ItemStack.EMPTY;
-                            }
-                            return dynamic.getStackInSlot(slot);
-                        })
-                        .orElse(ItemStack.EMPTY))
-                .orElse(ItemStack.EMPTY);
+        return com.solarbiscuit.ratlib.compat.curios.CuriosCompat.getStack(player, identifier, slot);
     }
 
     @Nullable
@@ -79,42 +59,40 @@ public final class CuriosCompat {
         if (!isLoaded()) {
             return null;
         }
-        return fromSlotLoaded(player, slot);
-    }
-
-    @Nullable
-    private static OpenContext fromSlotLoaded(Player player, Slot slot) {
-        if (!(slot instanceof SlotItemHandler handlerSlot)) {
+        String identifier = com.solarbiscuit.ratlib.compat.curios.CuriosCompat.identifierMatching(player, slot);
+        if (identifier == null) {
             return null;
         }
-        IItemHandler handler = handlerSlot.getItemHandler();
-        return CuriosApi.getCuriosInventory(player).map(inv -> {
-            for (var entry : inv.getCurios().entrySet()) {
-                if (entry.getValue().getStacks() == handler) {
-                    return OpenContext.curios(entry.getKey(), slot.getContainerSlot());
-                }
-            }
-            return null;
-        }).orElse(null);
+        return OpenContext.curios(identifier, slot.getContainerSlot());
     }
 
     public static int countCoins(Player player, CoinTier tier) {
-        if (!isLoaded()) {
-            return 0;
-        }
-        return countCoinsLoaded(player, tier);
+        return com.solarbiscuit.ratlib.compat.curios.CuriosCompat.countInAllSlots(player,
+                stack -> CoinHelper.countInStack(stack, tier));
     }
 
-    private static int countCoinsLoaded(Player player, CoinTier tier) {
-        return CuriosApi.getCuriosInventory(player).map(inv -> {
-            int total = 0;
-            for (var entry : inv.getCurios().entrySet()) {
-                IDynamicStackHandler stacks = entry.getValue().getStacks();
-                for (int i = 0; i < stacks.getSlots(); i++) {
-                    total += CoinHelper.countInStack(stacks.getStackInSlot(i), tier);
+    public static int takeCoins(Player player, CoinTier tier, int remaining) {
+        if (!isLoaded() || remaining <= 0) {
+            return remaining;
+        }
+        return takeCoinsLoaded(player, tier, remaining);
+    }
+
+    private static int takeCoinsLoaded(Player player, CoinTier tier, int remaining) {
+        var curios = CuriosApi.getCuriosInventory(player).orElse(null);
+        if (curios == null) {
+            return remaining;
+        }
+        for (var entry : curios.getCurios().entrySet()) {
+            IDynamicStackHandler stacks = entry.getValue().getStacks();
+            for (int i = 0; i < stacks.getSlots() && remaining > 0; i++) {
+                ItemStack stored = stacks.getStackInSlot(i);
+                remaining = CoinHelper.takeFromStack(stored, tier, remaining);
+                if (stored.isEmpty()) {
+                    stacks.setStackInSlot(i, ItemStack.EMPTY);
                 }
             }
-            return total;
-        }).orElse(0);
+        }
+        return remaining;
     }
 }
