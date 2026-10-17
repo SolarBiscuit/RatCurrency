@@ -19,9 +19,10 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.SlotItemHandler;
-import net.minecraftforge.items.wrapper.InvWrapper;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class OpenContext {
@@ -106,21 +107,71 @@ public class OpenContext {
     public CoinItemHandler createHandler(Player player) {
         if (this.type == Type.NESTED && this.parent != null) {
             CoinItemHandler parentHandler = this.parent.createHandler(player);
-            ItemStack child = parentHandler.getStackInSlot(this.slotIndex);
+            ItemStack child = this.slotIndex >= 0 && this.slotIndex < parentHandler.getSlots()
+                    ? parentHandler.getStackInSlot(this.slotIndex)
+                    : ItemStack.EMPTY;
             if (!(child.getItem() instanceof CoinContainerItem item)) {
                 return new CoinItemHandler(9);
             }
-            return new CoinItemHandler(child, item.getSlotCount(), parentHandler::forceSave);
+            CoinItemHandler handler = new CoinItemHandler(child, item.getSlotCount(), parentHandler::forceSave);
+            handler.setAncestors(parentHandler.getAncestors() + 1);
+            return handler;
         }
         ItemStack stack = getStack(player);
         if (!(stack.getItem() instanceof CoinContainerItem item)) {
             return new CoinItemHandler(9);
         }
+        if (this.type == Type.BLOCK && this.pos != null) {
+            // Saves edit the item's NBT in place, which the block entity never hears about. Mark it changed so
+            // the chunk is saved; otherwise coins taken out of a pouch in a chest could reappear after a reload.
+            Level level = player.level();
+            BlockPos blockPos = this.pos;
+            return new CoinItemHandler(stack, item.getSlotCount(), () -> {
+                BlockEntity be = level.getBlockEntity(blockPos);
+                if (be != null) {
+                    be.setChanged();
+                }
+            });
+        }
         return item.createHandler(stack);
     }
 
-    public boolean stillValid(Player player) {
-        ItemStack stack = getStack(player);
+    /**
+     * False when the block's inventory hands out copies of its stacks: edits would then never reach the real item,
+     * and taking coins out would duplicate them.
+     */
+    public boolean editsReachItem(Player player) {
+        if (this.type == Type.NESTED) {
+            return this.parent == null || this.parent.editsReachItem(player);
+        }
+        if (this.type != Type.BLOCK || this.pos == null) {
+            return true;
+        }
+        BlockEntity be = player.level().getBlockEntity(this.pos);
+        if (be == null) {
+            return false;
+        }
+        IItemHandler handler = be.getCapability(ForgeCapabilities.ITEM_HANDLER).orElse(null);
+        if (handler == null || this.slotIndex < 0 || this.slotIndex >= handler.getSlots()) {
+            return false;
+        }
+        return handler.getStackInSlot(this.slotIndex) == handler.getStackInSlot(this.slotIndex);
+    }
+
+    /** Ids of the coin containers this context sits inside, innermost first. */
+    public List<UUID> ancestorIds(Player player) {
+        List<UUID> ids = new ArrayList<>();
+        for (OpenContext context = this.parent; context != null; context = context.parent) {
+            UUID id = context.expectedId(player);
+            if (id != null) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
+    /** {@code stack} is this context's current stack, already resolved by the caller. */
+    public boolean stillValid(Player player, ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof CoinContainerItem)) {
             return false;
         }
@@ -162,14 +213,15 @@ public class OpenContext {
             return ItemStack.EMPTY;
         }
         ItemStack parentStack = this.parent.getStack(player);
-        if (!(parentStack.getItem() instanceof CoinContainerItem item)) {
+        if (!(parentStack.getItem() instanceof CoinContainerItem)) {
             return ItemStack.EMPTY;
         }
-        IItemHandler handler = item.createHandler(parentStack);
-        if (this.slotIndex < 0 || this.slotIndex >= handler.getSlots()) {
+        // Read-only copy: going through a handler would stamp Ids onto stacks as a side effect.
+        List<ItemStack> contents = CoinContainerItem.readContents(parentStack);
+        if (this.slotIndex < 0 || this.slotIndex >= contents.size()) {
             return ItemStack.EMPTY;
         }
-        return handler.getStackInSlot(this.slotIndex);
+        return contents.get(this.slotIndex);
     }
 
     @Nullable
@@ -224,44 +276,16 @@ public class OpenContext {
                         return pos;
                     }
                     if (slot.container instanceof CompoundContainer compound && be instanceof ChestBlockEntity chest
-                            && belongsToCompound(compound, chest)) {
+                            && compound.contains(chest)) {
                         return pos;
                     }
-                    if (slotHandler != null) {
-                        IItemHandler beHandler = be.getCapability(ForgeCapabilities.ITEM_HANDLER).orElse(null);
-                        if (beHandler != null && (beHandler == slotHandler || unwrap(beHandler) == unwrap(slotHandler))) {
-                            return pos;
-                        }
+                    if (slotHandler != null && be.getCapability(ForgeCapabilities.ITEM_HANDLER).orElse(null) == slotHandler) {
+                        return pos;
                     }
                 }
             }
         }
         return null;
-    }
-
-    private static boolean belongsToCompound(CompoundContainer compound, ChestBlockEntity chest) {
-        int chestSize = chest.getContainerSize();
-        if (compound.getContainerSize() < chestSize) {
-            return false;
-        }
-        boolean first = true;
-        boolean second = compound.getContainerSize() >= chestSize * 2;
-        for (int i = 0; i < chestSize; i++) {
-            if (compound.getItem(i) != chest.getItem(i)) {
-                first = false;
-            }
-            if (second && compound.getItem(i + chestSize) != chest.getItem(i)) {
-                second = false;
-            }
-        }
-        return first || second;
-    }
-
-    private static Object unwrap(IItemHandler handler) {
-        if (handler instanceof InvWrapper) {
-            return handler;
-        }
-        return handler;
     }
 
     public void write(FriendlyByteBuf buf) {

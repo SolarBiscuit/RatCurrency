@@ -5,11 +5,14 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.HopperMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.PlayerEnderChestContainer;
+import net.minecraft.world.level.block.entity.EnderChestBlockEntity;
 import net.minecraft.world.inventory.ShulkerBoxMenu;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.network.NetworkHooks;
 
 import javax.annotation.Nullable;
@@ -46,8 +49,9 @@ public class RestoreTarget {
         return new RestoreTarget(Kind.BLOCK, pos, null, null);
     }
 
-    public static RestoreTarget ender() {
-        return new RestoreTarget(Kind.ENDER, null, null, null);
+    /** {@code pos} is the ender chest block the inventory was opened from, or null if it wasn't opened from one. */
+    public static RestoreTarget ender(@Nullable BlockPos pos) {
+        return new RestoreTarget(Kind.ENDER, pos, null, null);
     }
 
     public static RestoreTarget coin(OpenContext context, RestoreTarget parentRestore) {
@@ -67,9 +71,13 @@ public class RestoreTarget {
         if (menu instanceof CoinContainerMenu coinMenu) {
             return coin(coinMenu.getOpenContext(), coinMenu.getRestoreTarget());
         }
+        // The player's own inventory has nothing to reopen; skip the block scan below.
+        if (menu == player.inventoryMenu || menu instanceof InventoryMenu) {
+            return none();
+        }
         if (menu instanceof ChestMenu chestMenu) {
             if (chestMenu.getContainer() == player.getEnderChestInventory()) {
-                return ender();
+                return ender(findActiveEnderChest(player));
             }
             if (!chestMenu.slots.isEmpty()) {
                 BlockPos pos = OpenContext.findBlockPos(player, chestMenu.getSlot(0));
@@ -86,13 +94,26 @@ public class RestoreTarget {
                 }
             }
         }
-        if (!menu.slots.isEmpty()) {
+        if (!menu.slots.isEmpty() && menu.getSlot(0).container != player.getInventory()) {
             BlockPos pos = OpenContext.findBlockPos(player, menu.getSlot(0));
             if (pos != null) {
                 return block(pos);
             }
         }
         return none();
+    }
+
+    @Nullable
+    private static BlockPos findActiveEnderChest(ServerPlayer player) {
+        PlayerEnderChestContainer enderInv = player.getEnderChestInventory();
+        BlockPos origin = player.blockPosition();
+        int range = 8;
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-range, -range, -range), origin.offset(range, range, range))) {
+            if (player.level().getBlockEntity(pos) instanceof EnderChestBlockEntity chest && enderInv.isActiveChest(chest)) {
+                return pos.immutable();
+            }
+        }
+        return null;
     }
 
     public void reopen(ServerPlayer player) {
@@ -103,14 +124,28 @@ public class RestoreTarget {
                 if (this.pos == null) {
                     return;
                 }
-                BlockEntity be = player.level().getBlockEntity(this.pos);
-                if (be instanceof MenuProvider provider) {
+                // Ask the block, not the block entity: a chest's block entity only opens its own half.
+                MenuProvider provider = player.level().getBlockState(this.pos).getMenuProvider(player.level(), this.pos);
+                if (provider == null && player.level().getBlockEntity(this.pos) instanceof MenuProvider beProvider) {
+                    provider = beProvider;
+                }
+                if (provider != null) {
                     NetworkHooks.openScreen(player, provider, this.pos);
                 }
             }
-            case ENDER -> player.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                    (id, inv, p) -> ChestMenu.threeRows(id, inv, p.getEnderChestInventory()),
-                    Component.translatable("container.enderchest")));
+            case ENDER -> {
+                PlayerEnderChestContainer enderInv = player.getEnderChestInventory();
+                if (this.pos != null) {
+                    // Re-link the chest block like EnderChestBlock.use does: lid animation and distance check.
+                    if (!(player.level().getBlockEntity(this.pos) instanceof EnderChestBlockEntity chest)) {
+                        return;
+                    }
+                    enderInv.setActiveChest(chest);
+                }
+                player.openMenu(new SimpleMenuProvider(
+                        (id, inv, p) -> ChestMenu.threeRows(id, inv, enderInv),
+                        Component.translatable("container.enderchest")));
+            }
             case COIN -> {
                 if (this.coinContext != null) {
                     RestoreTarget parent = this.nestedRestore != null ? this.nestedRestore : none();
@@ -124,6 +159,7 @@ public class RestoreTarget {
         buf.writeEnum(this.kind);
         switch (this.kind) {
             case BLOCK -> buf.writeBlockPos(this.pos);
+            case ENDER -> buf.writeNullable(this.pos, FriendlyByteBuf::writeBlockPos);
             case COIN -> {
                 this.coinContext.write(buf);
                 RestoreTarget parent = this.nestedRestore != null ? this.nestedRestore : none();
@@ -139,7 +175,7 @@ public class RestoreTarget {
         return switch (kind) {
             case NONE -> none();
             case BLOCK -> block(buf.readBlockPos());
-            case ENDER -> ender();
+            case ENDER -> ender(buf.readNullable(FriendlyByteBuf::readBlockPos));
             case COIN -> coin(OpenContext.read(buf), read(buf));
         };
     }

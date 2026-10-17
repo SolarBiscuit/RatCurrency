@@ -3,6 +3,9 @@
   "entries": [
     "ratcurrency:dungeon_pouch",
     "ratcurrency:dungeon_case",
-    "ratcurrency:dungeon_crate"
+    "ratcurrency:dungeon_crate",
+    "ratcurrency:dungeon_opulence_book",
+    "ratcurrency:supplementaries_urn_coins",
+    "ratcurrency:realmrpg_skeleton_coins"
   ]
 }

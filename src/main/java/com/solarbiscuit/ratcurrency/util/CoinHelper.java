@@ -1,6 +1,8 @@
 package com.solarbiscuit.ratcurrency.util;
 
+import com.solarbiscuit.ratcurrency.config.RatCurrencyConfig;
 import com.solarbiscuit.ratcurrency.inventory.CoinItemHandler;
+import com.solarbiscuit.ratcurrency.inventory.ContainerLocks;
 import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.item.CoinItem;
 import com.solarbiscuit.ratcurrency.item.CoinTier;
@@ -10,7 +12,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
-import net.minecraftforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -19,6 +20,8 @@ import java.util.UUID;
 
 public final class CoinHelper {
     public static final int COINS_PER_TIER = 100;
+    /** Most coin containers that may sit inside each other (each level adds ~4 NBT levels; vanilla caps at 512). */
+    public static final int MAX_NESTING = 8;
 
     private CoinHelper() {
     }
@@ -40,20 +43,32 @@ public final class CoinHelper {
     }
 
     public static boolean containsId(ItemStack container, UUID id) {
-        if (container.isEmpty() || !(container.getItem() instanceof CoinContainerItem item)) {
+        if (container.isEmpty() || !(container.getItem() instanceof CoinContainerItem)) {
             return false;
         }
-        UUID own = CoinContainerItem.getId(container);
-        if (id.equals(own)) {
+        if (id.equals(CoinContainerItem.getId(container))) {
             return true;
         }
-        IItemHandler handler = item.createHandler(container);
-        for (int i = 0; i < handler.getSlots(); i++) {
-            if (containsId(handler.getStackInSlot(i), id)) {
+        for (ItemStack inner : CoinContainerItem.readContents(container)) {
+            if (containsId(inner, id)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Number of coin containers nested in {@code stack}, counting itself (0 for anything else). */
+    public static int containerDepth(ItemStack stack) {
+        if (!(stack.getItem() instanceof CoinContainerItem)) {
+            return 0;
+        }
+        int deepest = 0;
+        for (ItemStack inner : CoinContainerItem.readContents(stack)) {
+            if (inner.getItem() instanceof CoinContainerItem) {
+                deepest = Math.max(deepest, containerDepth(inner));
+            }
+        }
+        return 1 + deepest;
     }
 
     public static void compress(IItemHandlerModifiable handler) {
@@ -101,12 +116,15 @@ public final class CoinHelper {
         }
     }
 
-    public static List<ItemStack> denominate(int copperUnits) {
+    /** Most stacks a single denominate() call returns, so huge values with high tiers disabled can't flood the world. */
+    private static final int MAX_DENOMINATED_STACKS = 64;
+
+    public static List<ItemStack> denominate(long copperUnits) {
         List<ItemStack> drops = new ArrayList<>();
         if (copperUnits <= 0) {
             return drops;
         }
-        int remaining = copperUnits;
+        long remaining = copperUnits;
         CoinTier[] tiers = CoinTier.values();
         long[] values = new long[tiers.length];
         values[0] = 1;
@@ -114,17 +132,15 @@ public final class CoinHelper {
             values[i] = values[i - 1] * COINS_PER_TIER;
         }
         for (int i = tiers.length - 1; i >= 0; i--) {
-            if (values[i] > remaining) {
+            if (values[i] > remaining || !RatCurrencyConfig.isCoinEnabled(tiers[i])) {
                 continue;
             }
-            int count = (int) (remaining / values[i]);
-            if (count > 0) {
-                remaining -= count * values[i];
-                while (count > 0) {
-                    int stackSize = Math.min(COINS_PER_TIER, count);
-                    drops.add(new ItemStack(tiers[i].getItem(), stackSize));
-                    count -= stackSize;
-                }
+            long count = remaining / values[i];
+            remaining -= count * values[i];
+            while (count > 0 && drops.size() < MAX_DENOMINATED_STACKS) {
+                int stackSize = (int) Math.min(COINS_PER_TIER, count);
+                drops.add(new ItemStack(tiers[i].getItem(), stackSize));
+                count -= stackSize;
             }
         }
         return drops;
@@ -134,25 +150,92 @@ public final class CoinHelper {
         ItemStack remaining = coins.copy();
         for (int i = 0; i < inventory.getSlots() && !remaining.isEmpty(); i++) {
             ItemStack stored = inventory.getStackInSlot(i);
-            if (stored.getItem() instanceof CoinContainerItem container) {
-                remaining = container.createHandler(stored).insertItemStacked(remaining);
-            }
+            remaining = insertInto(stored, remaining);
         }
         return remaining;
     }
 
+    /** Inserts coins into one container item, skipping containers that are open in a menu or have no room. */
+    public static ItemStack insertInto(ItemStack container, ItemStack coins) {
+        if (!(container.getItem() instanceof CoinContainerItem item) || coins.isEmpty()
+                || !item.mightAccept(container, coins) || ContainerLocks.isLocked(container)) {
+            return coins;
+        }
+        return item.createHandler(container).insertItemStacked(coins);
+    }
+
+    /**
+     * Merges and upgrades the player's loose coins, keeping each tier in the slots it already occupied so a pickup
+     * doesn't shuffle coins into the hotbar. Compressing never needs more stacks than it started with.
+     */
     public static void compressPlayerInventory(Player player) {
         Inventory inv = player.getInventory();
-        ItemStackHandler temp = new ItemStackHandler(37);
-        for (int i = 0; i < 36; i++) {
-            temp.setStackInSlot(i, inv.getItem(i));
+        List<Integer> coinSlots = new ArrayList<>();
+        EnumMap<CoinTier, List<Integer>> tierSlots = new EnumMap<>(CoinTier.class);
+        long[] counts = new long[CoinTier.values().length];
+        for (int slot = 0; slot < inv.getContainerSize(); slot++) {
+            if (slot >= Inventory.INVENTORY_SIZE && slot != Inventory.SLOT_OFFHAND) {
+                continue;
+            }
+            CoinTier tier = CoinTier.of(inv.getItem(slot).getItem());
+            if (tier != null) {
+                coinSlots.add(slot);
+                tierSlots.computeIfAbsent(tier, t -> new ArrayList<>()).add(slot);
+                counts[tier.ordinal()] += inv.getItem(slot).getCount();
+            }
         }
-        temp.setStackInSlot(36, inv.getItem(Inventory.SLOT_OFFHAND));
-        compress(temp);
-        for (int i = 0; i < 36; i++) {
-            inv.setItem(i, temp.getStackInSlot(i));
+        if (coinSlots.size() < 2 && !needsUpgrade(counts)) {
+            return;
         }
-        inv.setItem(Inventory.SLOT_OFFHAND, temp.getStackInSlot(36));
+        CoinTier[] tiers = CoinTier.values();
+        for (int i = 0; i < tiers.length - 1; i++) {
+            counts[i + 1] += counts[i] / COINS_PER_TIER;
+            counts[i] %= COINS_PER_TIER;
+        }
+        ItemStack[] result = new ItemStack[inv.getContainerSize()];
+        List<ItemStack> overflow = new ArrayList<>();
+        for (CoinTier tier : tiers) {
+            long remaining = counts[tier.ordinal()];
+            for (int slot : tierSlots.getOrDefault(tier, List.of())) {
+                if (remaining <= 0) {
+                    break;
+                }
+                int put = (int) Math.min(COINS_PER_TIER, remaining);
+                result[slot] = new ItemStack(tier.getItem(), put);
+                remaining -= put;
+            }
+            while (remaining > 0) {
+                int put = (int) Math.min(COINS_PER_TIER, remaining);
+                overflow.add(new ItemStack(tier.getItem(), put));
+                remaining -= put;
+            }
+        }
+        for (int slot : coinSlots) {
+            if (result[slot] == null && !overflow.isEmpty()) {
+                result[slot] = overflow.remove(0);
+            }
+        }
+        for (int slot : coinSlots) {
+            ItemStack updated = result[slot] == null ? ItemStack.EMPTY : result[slot];
+            if (!ItemStack.matches(inv.getItem(slot), updated)) {
+                inv.setItem(slot, updated);
+            }
+        }
+        for (ItemStack extra : overflow) {
+            // Not expected (see above), but never delete coins.
+            if (!inv.add(extra)) {
+                player.drop(extra, false);
+            }
+        }
+    }
+
+    private static boolean needsUpgrade(long[] counts) {
+        for (int i = 0; i < counts.length - 1; i++) {
+            if (counts[i] >= COINS_PER_TIER) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int countCoins(Player player, CoinTier tier) {
@@ -200,6 +283,9 @@ public final class CoinHelper {
             return remaining - take;
         }
         if (stack.getItem() instanceof CoinContainerItem item) {
+            if (ContainerLocks.isLocked(stack)) {
+                return remaining;
+            }
             CoinItemHandler handler = item.createHandler(stack);
             final int[] left = {remaining};
             handler.runSilent(() -> {
@@ -224,11 +310,14 @@ public final class CoinHelper {
         if (CoinTier.of(stack.getItem()) == tier) {
             return stack.getCount();
         }
-        if (stack.getItem() instanceof CoinContainerItem item) {
+        if (stack.getItem() instanceof CoinContainerItem) {
+            // Containers open in a menu can't be spent from, so they don't count either.
+            if (ContainerLocks.isLocked(stack)) {
+                return 0;
+            }
             int total = 0;
-            IItemHandler handler = item.createHandler(stack);
-            for (int i = 0; i < handler.getSlots(); i++) {
-                total += countInStack(handler.getStackInSlot(i), tier);
+            for (ItemStack inner : CoinContainerItem.readContents(stack)) {
+                total += countInStack(inner, tier);
             }
             return total;
         }

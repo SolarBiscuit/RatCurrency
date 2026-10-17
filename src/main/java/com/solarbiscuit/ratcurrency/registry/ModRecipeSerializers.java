@@ -1,6 +1,7 @@
 package com.solarbiscuit.ratcurrency.registry;
 
 import com.solarbiscuit.ratcurrency.RatCurrency;
+import com.solarbiscuit.ratcurrency.recipe.CoinDowngradeRecipe;
 import com.solarbiscuit.ratcurrency.recipe.CoinUpgradeRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraftforge.registries.DeferredRegister;
@@ -13,4 +14,6 @@ public class ModRecipeSerializers {
 
     public static final RegistryObject<RecipeSerializer<CoinUpgradeRecipe>> COIN_UPGRADE =
             SERIALIZERS.register("coin_upgrade", CoinUpgradeRecipe.Serializer::new);
+    public static final RegistryObject<RecipeSerializer<CoinDowngradeRecipe>> COIN_DOWNGRADE =
+            SERIALIZERS.register("coin_downgrade", CoinDowngradeRecipe.Serializer::new);
 }

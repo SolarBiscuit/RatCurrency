@@ -1,7 +1,6 @@
 package com.solarbiscuit.ratcurrency.compat.curios;
 
 import com.solarbiscuit.ratcurrency.inventory.OpenContext;
-import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.item.CoinTier;
 import com.solarbiscuit.ratcurrency.util.CoinHelper;
 import net.minecraft.world.entity.player.Player;
@@ -42,12 +41,7 @@ public final class CuriosCompat {
 
     private static ItemStack insertIntoSlot(Player player, String slotId, ItemStack coins) {
         return com.solarbiscuit.ratlib.compat.curios.CuriosCompat.insertIntoSlot(player, slotId, coins,
-                (handler, slot, stored, remaining) -> {
-                    if (stored.getItem() instanceof CoinContainerItem container) {
-                        return container.createHandler(stored).insertItemStacked(remaining);
-                    }
-                    return remaining;
-                });
+                (handler, slot, stored, remaining) -> CoinHelper.insertInto(stored, remaining));
     }
 
     public static ItemStack getStack(Player player, String identifier, int slot) {

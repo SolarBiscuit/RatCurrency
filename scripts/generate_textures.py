@@ -216,8 +216,8 @@ def draw_satchel() -> list[tuple[int, int, int, int]]:
 def draw_empty_currency_slot() -> list[tuple[int, int, int, int]]:
     w = 16
     px = canvas(w, 16)
-    outline = hex_color("#C4A574")
-    dark = hex_color("#8B5A2B")
+    # Match Curios' built-in empty-slot icons, which all use a single flat #555555.
+    outline = hex_color("#555555")
     pouch = draw_pouch()
     for y in range(16):
         for x in range(16):
@@ -230,7 +230,7 @@ def draw_empty_currency_slot() -> list[tuple[int, int, int, int]]:
                     edge = True
                     break
             if edge:
-                setp(px, w, x, y, dark if y > 10 or x <= 3 else outline)
+                setp(px, w, x, y, outline)
     return px
 
 

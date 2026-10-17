@@ -1,0 +1,6 @@
+{
+  "type": "ratcurrency:urn_coins",
+  "conditions": [
+    { "condition": "forge:loot_table_id", "loot_table_id": "supplementaries:blocks/urn" }
+  ]
+}

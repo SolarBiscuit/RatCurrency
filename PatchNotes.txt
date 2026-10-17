@@ -1,0 +1,152 @@
+Rat Currency Patch Notes
+========================
+
+1.1.2
+-----
+- RealmRPG: Fallen Adventurers compat: breaking an adventurer skeleton drops 1 copper to
+  20 silver in mixed coins (same pool as urns). Opulence on the breaking tool adds its bonus.
+  Silk Touch (which just picks the skeleton up) drops no coins, matching the mod's own loot,
+  so moving a skeleton never pays out twice. Covers every skeleton type automatically.
+  Config: realmrpg.skeletonCoinsEnabled (default true). Does nothing without the mod.
+- Urn and skeleton coin ranges are now set as an amount plus a coin tier at each end, e.g.
+  minimum 23 Gold to maximum 2 Ruby (defaults: 1 Copper to 20 Silver). Config keys:
+  urnMinCount/urnMinTier/urnMaxCount/urnMaxTier and skeletonMinCount/.../skeletonMaxTier,
+  all on the config screen (amount sliders 1-100, coin buttons cycle Copper..Netherite).
+  If the minimum is set higher than the maximum, the two are swapped.
+  The old urnMinCopper/urnMaxCopper keys are replaced; a customized urn range needs to be
+  set again.
+- Config sync now also carries text/enum settings (the coin tiers above).
+- Opulence can no longer overflow on astronomically large drops.
+
+1.1.1
+-----
+- Server config is now enforced on clients. On login (and whenever the server's config file
+  is edited) the server sends its Rat Currency config to every client, and clients use those
+  values while connected: Rat Coin stack size, satchel slot limit, coin toggles, Opulence
+  settings, etc. Prevents ghost/split stacks when a client's config differs from the
+  server's. Singleplayer and LAN hosts are unaffected; the local config file and config
+  screen still work as before. Adds a ratcurrency:main network channel, so client and
+  server must both run 1.1.1+.
+- Fixed coins reserved for one player (e.g. /give overflow when the inventory is full)
+  being routed into another player's pouch on pickup.
+- Fixed a possible duplication: coins taken out of a pouch stored in a chest (or barrel,
+  shulker box, etc.) weren't marking the chest as changed, so if nothing else changed that
+  chunk before it unloaded, the pouch could come back with the coins still in it.
+- Pouches in storage that hands out copies of its items can no longer be opened in place
+  ("This container can't be opened from here."), since edits would never reach the item.
+- Closing a pouch opened from an ender chest re-links the ender chest block like vanilla:
+  the lid animates and walking away closes the menu again.
+
+1.1.0
+-----
+New:
+- Supplementaries compat: breaking a treasure urn (the kind that generates in caves) drops
+  1 copper to 20 silver in mixed coins. Opulence on the breaking tool (pickaxe, paxel, etc.)
+  adds its usual bonus. Crafted/placed urns don't drop coins, so they can't be farmed.
+  Config: supplementaries.urnCoinsEnabled (default true), urnMinCopper, urnMaxCopper; also
+  on the config screen. Does nothing without Supplementaries.
+
+Fixed (from a code audit):
+- Coin duplication/deletion when shift-clicking coins into or out of an open pouch, case,
+  crate or satchel: the move wasn't always saved to the item, so reopening could show the
+  old contents.
+- An open coin container is now locked while its menu is open (along with any container
+  it sits inside). Before, picking up coins while a pouch was open could delete them, and
+  two players opening the same pouch in a chest could duplicate coins. Locked containers
+  are skipped by coin pickup and coin spending, and a second player gets "Someone else has
+  this container open."
+- Coin containers can be nested at most 8 deep. Unlimited nesting could make an item too
+  deep to save, kicking the player or breaking the chest's chunk.
+- Opening a nested container that had never been given an Id no longer closes instantly.
+- Picking up coins no longer shuffles your loose coins into empty hotbar slots; each tier
+  stays in the slots it was already in.
+- Coins that go straight into containers now count for pickup stats and fire the normal
+  pickup event (quest mods), and update the coin-count advancement right away.
+- Closing a pouch opened from a double chest reopens the whole double chest, not one half;
+  a nearby empty chest could also be mistaken for it.
+- The "reopen previous screen" step is skipped for players who died or disconnected.
+- A coin container whose saved slot count doesn't match its type is resized instead of
+  misaligning the menu.
+- Advancement trigger registration moved to the main thread (could race with other mods).
+- RatCoinService: randomPurse no longer overflows on huge inputs, and floorWithVariance no
+  longer builds a stack above 100.
+
+Performance:
+- Coin pickups skip containers that are full without loading them, and only save a container
+  when coins actually went in (was 2-3 full saves per pickup, every tick on a coin pile).
+- Counting coins and cycle checks read container NBT directly instead of building handlers.
+- Opening a pouch from your own inventory no longer scans ~9,000 nearby blocks.
+- Container tooltips no longer rebuild every stored stack each frame.
+
+1.0.12
+------
+- Reverted the per-dimension mob drop ranges from 1.0.11 (the drops.dimensions config is
+  gone). Mobs drop drops.minCopper-maxCopper in every dimension again. Dimension-scaled
+  coins now come from chest loot in the modpack instead.
+- Kept the 64-bit coin value math and the 64-stack cap from 1.0.11.
+
+1.0.11
+------
+- Requires RatLib 1.0.10+.
+- A stack of 100+ coins in a crafting grid now upgrades to the next tier by default instead of
+  sometimes breaking one coin down. Downgrade recipes use a new ratcurrency:coin_downgrade type:
+  - Without Polymorph they only match when fewer than 100 coins are in the grid.
+  - With Polymorph the downgrade is still listed for full stacks, but the upgrade is the
+    default pick (via RatLib's RecipePreference).
+- Mob coin drops now scale by dimension (new drops.dimensions config, in copper units):
+  - Nether: 1 gold to 1 sapphire.
+  - Aether: 25 gold to 1 sapphire.
+  - End: 50 gold to 1 emerald.
+  - Every other dimension still uses drops.minCopper/maxCopper.
+  Dimension amounts are rolled on a log scale (each coin tier in the range about equally
+  likely) and rounded down to whole gold coins.
+- Coin values for drops and Opulence now use 64-bit math, so emerald-sized drops don't
+  overflow. A single drop is capped at 64 stacks.
+
+1.0.10
+------
+- The Rat Currency config-screen tab is registered on the main thread. Client setup runs
+  mods in parallel, so registering alongside Solar's Mobs and RatRep could crash startup
+  or drop a tab.
+
+1.0.9
+-----
+- Requires RatLib 1.0.8+ (fixes coin stacks over 64 vanishing when dropped).
+- Fixed the coin pouch, coin case, coin crate and Rat Coin satchel not showing up in creative
+  search. Their tooltip stamped a random container Id onto every stack it was shown for,
+  including the creative tab's own copies, which broke search indexing. The tooltip now reads
+  the stored contents without modifying the stack.
+- Side effect of the same fix: containers taken from the creative tab no longer share an Id
+  (and therefore contents) with each other.
+
+1.0.8
+-----
+- Redrew the coin pouch, coin case, coin crate, Rat Coin satchel and diamond coin textures.
+
+1.0.7
+-----
+- Requires RatLib 1.0.7+.
+- Implements RatLib's new coin value/mix API, so other mods (e.g. Solar's Mobs) can value
+  and mix every coin tier, including emerald, ruby, diamond and obsidian.
+- Coin tier lookups by id are now O(1) instead of a scan over every tier.
+
+1.0.6
+-----
+- Curios currency slot outline now uses the same grey (#555555) as Curios' built-in slots.
+
+1.0.5
+-----
+- Curios currency slot outline is now black instead of brown/tan.
+- Opulence bonus percent is configurable per level (I-V), 0-500% (defaults 10/20/30/40/50).
+- Coin pouch, coin case, coin crate, and Rat Coin satchel now also appear in the vanilla Tools & Utilities creative tab.
+- Redrew the coin case sprite with rounder corners and tighter shading.
+- Replaced the broken 3D coin crate with a 2D toolbox sprite.
+
+1.0.3
+-----
+- Added Opulence I-V, a Fortune-like enchantment that increases coin drops from mobs by 10% per level (50% at V).
+- Opulence appears on swords in the enchanting table and can be applied to pickaxes, axes, and paxels at an anvil.
+- Opulence enchanted books have a small chance to appear in dungeon chests, and VERY_RARE weight on mob equipment and trades.
+- Added config toggle enchantments.opulenceEnabled (default true) to disable the enchantment.
+- Added per-coin enable flags under coins.* (including ratCoin). Disabled coins do not drop from mobs and are hidden from the creative tab.
+- Split mob drop chances: drops.dropChance (global) plus drops.vanillaHostileDropChance and drops.moddedHostileDropChance.

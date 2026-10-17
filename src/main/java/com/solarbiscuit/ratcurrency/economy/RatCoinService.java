@@ -1,6 +1,7 @@
 package com.solarbiscuit.ratcurrency.economy;
 
 import com.solarbiscuit.ratcurrency.compat.curios.CuriosCompat;
+import com.solarbiscuit.ratcurrency.config.RatCurrencyConfig;
 import com.solarbiscuit.ratcurrency.item.CoinItem;
 import com.solarbiscuit.ratcurrency.item.CoinTier;
 import com.solarbiscuit.ratcurrency.util.CoinHelper;
@@ -13,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.items.wrapper.InvWrapper;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 public final class RatCoinService implements CoinService {
@@ -64,7 +66,8 @@ public final class RatCoinService implements CoinService {
 
     @Override
     public List<ItemStack> randomPurse(RandomSource random, int maxGold) {
-        int maxCopper = Math.max(1, maxGold) * CoinHelper.COINS_PER_TIER * CoinHelper.COINS_PER_TIER;
+        int perGold = CoinHelper.COINS_PER_TIER * CoinHelper.COINS_PER_TIER;
+        int maxCopper = Math.min(Math.max(1, maxGold), (Integer.MAX_VALUE - 1) / perGold) * perGold;
         return CoinHelper.denominate(1 + random.nextInt(maxCopper));
     }
 
@@ -94,6 +97,24 @@ public final class RatCoinService implements CoinService {
     }
 
     @Override
+    public List<String> tierPaths() {
+        return CoinTier.paths();
+    }
+
+    @Override
+    public boolean isTierEnabled(String path) {
+        CoinTier tier = CoinTier.byPath(path);
+        return tier != null && RatCurrencyConfig.isCoinEnabled(tier);
+    }
+
+    @Override
+    @Nullable
+    public String tierPath(ItemStack stack) {
+        CoinTier tier = CoinTier.of(stack.getItem());
+        return tier == null ? null : tier.itemId();
+    }
+
+    @Override
     public DualCost exact(String path, int count, int emeraldFallback) {
         ItemStack coins = stack(path, count);
         if (!coins.isEmpty()) {
@@ -112,7 +133,8 @@ public final class RatCoinService implements CoinService {
         }
         CoinTier[] tiers = CoinTier.values();
         if (total >= coinsPerTier() && index + 1 < tiers.length) {
-            int nextCount = total / coinsPerTier();
+            // A trade slot holds one stack, so cap at a full stack instead of an invalid count.
+            int nextCount = Math.min(total / coinsPerTier(), coinsPerTier());
             int remainder = total % coinsPerTier();
             ItemStack higher = new ItemStack(tiers[index + 1].getItem(), nextCount);
             ItemStack lower = remainder > 0 ? stack(floorPath, remainder) : ItemStack.EMPTY;

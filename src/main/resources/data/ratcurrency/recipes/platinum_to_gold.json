@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "ratcurrency:coin_downgrade",
   "category": "misc",
   "ingredients": [{ "item": "ratcurrency:platinum_coin" }],
   "result": { "item": "ratcurrency:gold_coin", "count": 100 }

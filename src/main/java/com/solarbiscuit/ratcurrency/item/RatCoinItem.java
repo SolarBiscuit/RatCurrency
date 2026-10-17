@@ -16,7 +16,7 @@ public class RatCoinItem extends Item {
     @Override
     public int getMaxStackSize(ItemStack stack) {
         if (RatCurrencyConfig.SPEC.isLoaded()) {
-            return RatCurrencyConfig.RAT_COIN_MAX_STACK.get();
+            return RatCurrencyConfig.get(RatCurrencyConfig.RAT_COIN_MAX_STACK);
         }
         return DEFAULT_MAX_STACK;
     }

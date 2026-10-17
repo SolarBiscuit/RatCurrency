@@ -5,7 +5,11 @@ import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.RegistryObject;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public enum CoinTier {
     COPPER,
@@ -18,6 +22,20 @@ public enum CoinTier {
     DIAMOND,
     OBSIDIAN,
     NETHERITE;
+
+    private static final Map<String, CoinTier> BY_PATH;
+    private static final List<String> PATHS;
+
+    static {
+        Map<String, CoinTier> byPath = new HashMap<>();
+        List<String> paths = new ArrayList<>();
+        for (CoinTier tier : values()) {
+            byPath.put(tier.itemId(), tier);
+            paths.add(tier.itemId());
+        }
+        BY_PATH = Map.copyOf(byPath);
+        PATHS = List.copyOf(paths);
+    }
 
     public String itemId() {
         return name().toLowerCase(Locale.ROOT) + "_coin";
@@ -63,14 +81,11 @@ public enum CoinTier {
 
     @Nullable
     public static CoinTier byPath(String path) {
-        if (path == null) {
-            return null;
-        }
-        for (CoinTier tier : values()) {
-            if (tier.itemId().equals(path)) {
-                return tier;
-            }
-        }
-        return null;
+        return path == null ? null : BY_PATH.get(path);
+    }
+
+    /** Item paths in tier order, lowest value first. */
+    public static List<String> paths() {
+        return PATHS;
     }
 }

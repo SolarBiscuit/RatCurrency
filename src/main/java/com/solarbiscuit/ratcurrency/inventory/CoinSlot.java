@@ -16,4 +16,15 @@ public class CoinSlot extends SlotItemHandler {
         }
         return Math.min(getItemHandler().getSlotLimit(getSlotIndex()), stack.getMaxStackSize());
     }
+
+    // SlotItemHandler inherits Slot.setChanged(), which never reaches the handler, but vanilla's shift-click
+    // merge edits the stack in place and only calls setChanged(). Save without compressing: callers may
+    // still hold the stack being edited.
+    @Override
+    public void setChanged() {
+        super.setChanged();
+        if (getItemHandler() instanceof CoinItemHandler handler) {
+            handler.forceSave();
+        }
+    }
 }

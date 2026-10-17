@@ -15,6 +15,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkHooks;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.UUID;
 
 public class CoinContainerMenu extends AbstractContainerMenu {
@@ -23,6 +25,8 @@ public class CoinContainerMenu extends AbstractContainerMenu {
     private final CoinItemHandler handler;
     private final Layout layout;
     private final UUID openId;
+    @Nullable
+    private final ServerPlayer owner;
     private boolean restoreOnClose = true;
 
     public record Layout(int columns, int rows, int imageWidth, int imageHeight, int containerX, int containerY,
@@ -55,6 +59,7 @@ public class CoinContainerMenu extends AbstractContainerMenu {
         this.restoreTarget = restore;
         this.handler = handler;
         this.openId = openId;
+        this.owner = playerInv.player instanceof ServerPlayer serverPlayer ? serverPlayer : null;
         this.layout = Layout.forSlots(handler.getSlots());
 
         addContainerSlots();
@@ -78,11 +83,31 @@ public class CoinContainerMenu extends AbstractContainerMenu {
         if (!(stack.getItem() instanceof CoinContainerItem item)) {
             return;
         }
-        UUID containerId = CoinContainerItem.getOrCreateId(stack);
+        if (!context.editsReachItem(player)) {
+            player.displayClientMessage(Component.translatable("message.ratcurrency.cannot_open_here"), true);
+            return;
+        }
+        List<UUID> lockIds = context.ancestorIds(player);
+        lockIds.add(CoinContainerItem.getId(stack));
+        for (UUID id : lockIds) {
+            if (ContainerLocks.isLockedBy(id, player)) {
+                player.displayClientMessage(Component.translatable("message.ratcurrency.container_in_use"), true);
+                return;
+            }
+        }
+        // Close the current menu first so the handler is built from the state it leaves behind.
+        player.doCloseContainer();
+        boolean hadId = CoinContainerItem.getId(stack) != null;
+        CoinItemHandler handler = context.createHandler(player);
+        UUID containerId = CoinContainerItem.getOrCreateId(handler.getContainerStack());
+        if (!hadId) {
+            // Persist the new Id; for nested containers the handler's stack is a copy inside the parent.
+            handler.forceSave();
+        }
+        lockIds.set(lockIds.size() - 1, containerId);
         Component title = Component.translatable(item.getTitleKey());
         NetworkHooks.openScreen(player, new SimpleMenuProvider(
-                (windowId, inv, p) -> new CoinContainerMenu(windowId, inv, context, restore,
-                        context.createHandler(p), containerId),
+                (windowId, inv, p) -> new CoinContainerMenu(windowId, inv, context, restore, handler, containerId),
                 title
         ), buf -> {
             buf.writeVarInt(item.getSlotCount());
@@ -90,6 +115,18 @@ public class CoinContainerMenu extends AbstractContainerMenu {
             context.write(buf);
             restore.write(buf);
         });
+        if (player.containerMenu instanceof CoinContainerMenu menu && menu.handler == handler) {
+            ContainerLocks.lock(menu, lockIds);
+        }
+    }
+
+    @Nullable
+    ServerPlayer owner() {
+        return this.owner;
+    }
+
+    boolean isOpenOnServer() {
+        return this.owner != null && !this.owner.hasDisconnected() && this.owner.containerMenu == this;
     }
 
     public OpenContext getOpenContext() {
@@ -191,6 +228,8 @@ public class CoinContainerMenu extends AbstractContainerMenu {
             } else {
                 slot.setChanged();
             }
+            // moveItemStackTo edits container stacks in place, so save (and compress) explicitly.
+            this.handler.compressAndSave();
         }
         return original;
     }
@@ -198,22 +237,23 @@ public class CoinContainerMenu extends AbstractContainerMenu {
     @Override
     public boolean stillValid(Player player) {
         ItemStack live = this.openContext.getStack(player);
-        if (live.isEmpty() || !(live.getItem() instanceof CoinContainerItem)) {
+        if (!(live.getItem() instanceof CoinContainerItem)) {
             return false;
         }
-        UUID liveId = CoinContainerItem.getId(live);
-        return this.openId.equals(liveId) && this.openContext.stillValid(player);
+        return this.openId.equals(CoinContainerItem.getId(live)) && this.openContext.stillValid(player, live);
     }
 
     @Override
     public void removed(Player player) {
         super.removed(player);
+        ContainerLocks.unlock(this);
         if (player instanceof ServerPlayer serverPlayer && ModCriteria.COIN_COUNT != null) {
             ModCriteria.COIN_COUNT.trigger(serverPlayer);
         }
         if (this.restoreOnClose && !this.restoreTarget.isNone() && player instanceof ServerPlayer serverPlayer) {
             serverPlayer.server.execute(() -> {
-                if (serverPlayer.containerMenu == serverPlayer.inventoryMenu) {
+                if (!serverPlayer.hasDisconnected() && serverPlayer.isAlive()
+                        && serverPlayer.containerMenu == serverPlayer.inventoryMenu) {
                     this.restoreTarget.reopen(serverPlayer);
                 }
             });

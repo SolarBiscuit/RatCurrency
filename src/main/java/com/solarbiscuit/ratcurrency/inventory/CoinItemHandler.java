@@ -2,6 +2,7 @@ package com.solarbiscuit.ratcurrency.inventory;
 
 import com.solarbiscuit.ratcurrency.item.CoinContainerItem;
 import com.solarbiscuit.ratcurrency.util.CoinHelper;
+import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.ItemHandlerHelper;
@@ -16,6 +17,8 @@ public class CoinItemHandler extends ItemStackHandler {
     private final boolean compress;
     private boolean silent;
     private boolean compressing;
+    /** How many coin containers this one sits inside, as reached from the open menu. Used to cap nesting depth. */
+    private int ancestors;
 
     public CoinItemHandler(int size) {
         this(size, CoinHelper.COINS_PER_TIER, true);
@@ -47,6 +50,14 @@ public class CoinItemHandler extends ItemStackHandler {
         CompoundTag tag = containerStack.getTag();
         if (tag != null && tag.contains(CoinContainerItem.TAG_ITEMS)) {
             deserializeNBT(tag.getCompound(CoinContainerItem.TAG_ITEMS));
+            if (this.stacks.size() != size) {
+                // deserializeNBT resizes to the stored "Size"; keep the item's real slot count so menus line up.
+                NonNullList<ItemStack> resized = NonNullList.withSize(size, ItemStack.EMPTY);
+                for (int i = 0; i < Math.min(size, this.stacks.size()); i++) {
+                    resized.set(i, this.stacks.get(i));
+                }
+                this.stacks = resized;
+            }
         }
         CoinContainerItem.getOrCreateId(containerStack);
     }
@@ -66,12 +77,30 @@ public class CoinItemHandler extends ItemStackHandler {
         save();
     }
 
+    public void setAncestors(int ancestors) {
+        this.ancestors = ancestors;
+    }
+
+    public int getAncestors() {
+        return this.ancestors;
+    }
+
     public ItemStack insertItemStacked(ItemStack stack) {
         if (stack.isEmpty() || !isItemValid(0, stack)) {
             return stack;
         }
-        ItemStack remaining = ItemHandlerHelper.insertItemStacked(this, stack, false);
-        compressAndSave();
+        // Insert silently, then compress and save once, and only if something actually went in.
+        boolean previous = this.silent;
+        this.silent = true;
+        ItemStack remaining;
+        try {
+            remaining = ItemHandlerHelper.insertItemStacked(this, stack, false);
+        } finally {
+            this.silent = previous;
+        }
+        if (remaining.getCount() != stack.getCount()) {
+            compressAndSave();
+        }
         return remaining;
     }
 
@@ -84,8 +113,11 @@ public class CoinItemHandler extends ItemStackHandler {
         } else if (!CoinHelper.isAllowedInContainer(stack)) {
             return false;
         }
-        if (CoinHelper.isCoinContainer(stack) && !this.containerStack.isEmpty()) {
-            UUID destId = CoinContainerItem.getId(this.containerStack);
+        if (CoinHelper.isCoinContainer(stack)) {
+            if (this.ancestors + 1 + CoinHelper.containerDepth(stack) > CoinHelper.MAX_NESTING) {
+                return false;
+            }
+            UUID destId = this.containerStack.isEmpty() ? null : CoinContainerItem.getId(this.containerStack);
             if (destId != null && CoinHelper.containsId(stack, destId)) {
                 return false;
             }
@@ -106,7 +138,7 @@ public class CoinItemHandler extends ItemStackHandler {
         compressAndSave();
     }
 
-    private void compressAndSave() {
+    public void compressAndSave() {
         if (this.compressing || this.containerStack.isEmpty() || !this.compress) {
             save();
             return;

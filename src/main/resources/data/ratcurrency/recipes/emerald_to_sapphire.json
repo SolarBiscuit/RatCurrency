@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "ratcurrency:coin_downgrade",
   "category": "misc",
   "ingredients": [{ "item": "ratcurrency:emerald_coin" }],
   "result": { "item": "ratcurrency:sapphire_coin", "count": 100 }
